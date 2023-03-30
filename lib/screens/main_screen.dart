@@ -1,5 +1,7 @@
+import 'package:chatting_app/screens/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:chatting_app/config/palette.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginSignupScreen extends StatefulWidget {
   const LoginSignupScreen({Key? key}) : super(key: key);
@@ -10,6 +12,7 @@ class LoginSignupScreen extends StatefulWidget {
 
 class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
+  final _authentication = FirebaseAuth.instance;
   bool isSignupScreen = true;
   final _formKey = GlobalKey<FormState>();
   String userName = '';
@@ -179,15 +182,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                             child: Column(
                               children: [
                                 TextFormField(
-                                  key: ValueKey(1),
+                                  key: const ValueKey(1),
                                   validator: (value) {
-                                    if(value!.isEmpty || value!.length < 4){
+                                    if(value!.isEmpty || value.length < 4){
                                       return 'Please enter at least 4 characters';
                                     }
                                     return null;
                                   },
                                   onSaved: (newValue) {
                                     userName = newValue!;
+                                  },
+                                  onChanged: (value) {
+                                    userName = value;
                                   },
                                   decoration: const InputDecoration(
                                     prefixIcon: Icon(
@@ -218,7 +224,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   height: 8,
                                 ),
                                 TextFormField(
-                                  key: ValueKey(2),
+                                  keyboardType: TextInputType.emailAddress,    //이메일 전용 키보드
+                                  key: const ValueKey(2),
                                   validator: (value) {
                                     if(value!.isEmpty || !value.contains('@')){
                                       return 'Please enter a valid email address.';
@@ -227,6 +234,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   },
                                   onSaved: (newValue) {
                                     userEmail = newValue!;
+                                  },
+                                  onChanged: (value) {
+                                    userEmail = value;
                                   },
                                   decoration: const InputDecoration(
                                       prefixIcon: Icon(
@@ -257,15 +267,19 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   height: 8,
                                 ),
                                 TextFormField(
-                                  key: ValueKey(3),
+                                  obscureText: true,      //비밀번호 ****로 표시하도록
+                                  key: const ValueKey(3),
                                   validator: (value) {
-                                    if(value!.isEmpty || value!.length < 6){
+                                    if(value!.isEmpty || value.length < 6){
                                       return 'Password must be at least 7 characters long.';
                                     }
                                     return null;
                                   },
                                   onSaved: (newValue) {
                                     userPassword = newValue!;
+                                  },
+                                  onChanged: (value) {
+                                    userPassword = value;
                                   },
                                   decoration: const InputDecoration(
                                       prefixIcon: Icon(
@@ -304,15 +318,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                             child: Column(
                               children: [
                                 TextFormField(
-                                  key: ValueKey(4),
+                                  key: const ValueKey(4),
                                   validator: (value) {
-                                    if(value!.isEmpty || value!.length < 4){
-                                      return 'Please enter at least 4 characters';
+                                    if(value!.isEmpty || !value.contains('@')) {
+                                      return 'Please enter a valid email address.';
                                     }
                                     return null;
                                   },
                                   onSaved: (newValue) {
-                                    userName = newValue!;
+                                    userEmail = newValue!;
+                                  },
+                                  onChanged: (value) {
+                                    userEmail = value;
                                   },
                                   decoration: const InputDecoration(
                                       prefixIcon: Icon(
@@ -343,15 +360,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   height: 8,
                                 ),
                                 TextFormField(
-                                  key: ValueKey(5),
+                                  key: const ValueKey(5),
                                   validator: (value) {
-                                    if(value!.isEmpty || value!.length < 6){
+                                    if(value!.isEmpty || value.length < 6){
                                       return 'Password must be at least 7 characters long.';
                                     }
                                     return null;
                                   },
                                   onSaved: (newValue) {
                                     userPassword = newValue!;
+                                  },
+                                  onChanged: (value) {
+                                    userPassword = value;
                                   },
                                   decoration: const InputDecoration(
                                       prefixIcon: Icon(
@@ -404,8 +424,55 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                       borderRadius: BorderRadius.circular(50)
                     ),
                     child: GestureDetector(
-                      onTap: () {
-                        _tryValidation();
+                      onTap: () async{
+                        if(isSignupScreen){
+                          _tryValidation();
+                          try {
+                            final newUser = await _authentication
+                                .createUserWithEmailAndPassword(
+                                email: userEmail,
+                                password: userPassword
+                            );
+                            if(newUser.user != null){        //등록이 된거니 채팅페이지로 넘어가도록
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context){
+                                    return ChatScreen();
+                                  })
+                              );
+                            }
+                          }
+                          catch(e){
+                            print(e);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                  Text('Please check your email and password'),
+                                backgroundColor: Colors.blue,
+                              )
+                            );
+                          }
+                        }
+                        if(!isSignupScreen) {
+                          _tryValidation();
+                          try {
+                            final newUser = await _authentication
+                                .signInWithEmailAndPassword(
+                                email: userEmail,
+                                password: userPassword
+                            );
+                            if (newUser.user != null) { //등록이 된거니 채팅페이지로 넘어가도록
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) {
+                                    return ChatScreen();
+                                  })
+                              );
+                            }
+                          }catch(e){
+                            print(e);
+                          }
+                        }
                       },
                       child: Container(
                         decoration: BoxDecoration(
