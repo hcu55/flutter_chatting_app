@@ -1,8 +1,12 @@
+import 'dart:io';
+import 'package:chatting_app/add_image/add_image.dart';
 import 'package:chatting_app/screens/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:chatting_app/config/palette.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class LoginSignupScreen extends StatefulWidget {
   const LoginSignupScreen({Key? key}) : super(key: key);
@@ -14,19 +18,36 @@ class LoginSignupScreen extends StatefulWidget {
 class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   final _authentication = FirebaseAuth.instance;
+
   bool isSignupScreen = true;
   bool showSpinner = false;
   final _formKey = GlobalKey<FormState>();
   String userName = '';
   String userEmail = '';
   String userPassword = '';
+  File? userPickedImage;
 
+  void pickedImage(File image){
+    userPickedImage = image;
+  }
 
   void _tryValidation(){
     final isValid = _formKey.currentState!.validate();
     if(isValid){
       _formKey.currentState!.save();
     }
+  }
+
+  void showAlert(BuildContext context){
+    showDialog(
+        context: context,
+        builder: (context) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            child: AddImage(pickedImage),
+          );
+        },
+    );
   }
 
   @override
@@ -158,17 +179,33 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                 },
                                 child: Column(
                                   children: [
-                                    Text(
-                                      'SIGNUP',
-                                      style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color:isSignupScreen ? Palette.activeColor : Palette.textColor1
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'SIGNUP',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color:isSignupScreen ? Palette.activeColor : Palette.textColor1
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 15,
+                                        ),
+                                        if(isSignupScreen)
+                                        GestureDetector(
+                                          onTap: () {
+                                            showAlert(context);
+                                          },
+                                          child: Icon(Icons.image,
+                                            color: isSignupScreen ? Colors.cyan : Colors.grey[300],
+                                          ),
+                                        )
+                                      ],
                                     ),
                                     if(isSignupScreen)
                                     Container(
-                                      margin: const EdgeInsets.only(top: 3),
+                                      margin: const EdgeInsets.fromLTRB(0, 3, 35, 0),
                                       height: 2,
                                       width: 55,
                                       color: Colors.orange,
@@ -433,14 +470,46 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                             showSpinner = true;
                           });
                           if(isSignupScreen){
+                            if(userPickedImage == null){
+                              setState(() {
+                                showSpinner = false;
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Please pick your image'),
+                                  backgroundColor: Colors.blue,
+                                ),
+                              );
+                              return;
+                            }
                             _tryValidation();
 
                             try {
                               final newUser = await _authentication
                                   .createUserWithEmailAndPassword(
-                                  email: userEmail,
-                                  password: userPassword
+                                email: userEmail,
+                                password: userPassword,
+
                               );
+
+                              final refImage = FirebaseStorage.instance.ref()
+                                  .child('picked_image')
+                                  .child(newUser.user!.uid+'.png');
+
+                              await refImage.putFile(userPickedImage!);
+                              final url = await refImage.getDownloadURL();
+
+                              await FirebaseFirestore.instance
+                                  .collection('user')
+                                  .doc(newUser.user!.uid)
+                                  .set({
+                                'userName' :userName,
+                                'email' : userEmail,
+                                'picked_image' : url
+                              }
+                              );
+
                               if(newUser.user != null){        //등록이 된거니 채팅페이지로 넘어가도록
                                 Navigator.push(
                                     context,
@@ -453,15 +522,21 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                 });
                               }
                             }
-                            catch(e){
+                            catch(e) {
                               print(e);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content:
-                                    Text('Please check your email and password'),
-                                  backgroundColor: Colors.blue,
-                                )
-                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                      Text(
+                                          'Please check your email and password'),
+                                      backgroundColor: Colors.blue,
+                                    )
+                                );
+                                setState(() {
+                                  showSpinner = false;
+                                });
+                              }
                             }
                           }
                           if(!isSignupScreen) {
@@ -473,15 +548,21 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   password: userPassword
                               );
                               if (newUser.user != null) { //등록이 된거니 채팅페이지로 넘어가도록
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) {
-                                      return ChatScreen();
-                                    })
-                                );
+                           //     Navigator.push(
+                            //        context,
+                            //        MaterialPageRoute(builder: (context) {
+                          //            return ChatScreen();
+                          //          })
+                         //       );
+                                setState(() {
+                                  showSpinner = false;
+                                });
                               }
                             }catch(e){
                               print(e);
+                              setState(() {
+                                showSpinner = false;
+                              });
                             }
                           }
                         },
