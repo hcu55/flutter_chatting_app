@@ -189,7 +189,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                               color:isSignupScreen ? Palette.activeColor : Palette.textColor1
                                           ),
                                         ),
-                                        SizedBox(
+                                        const SizedBox(
                                           width: 15,
                                         ),
                                         if(isSignupScreen)
@@ -476,7 +476,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                               });
 
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
+                                const SnackBar(
                                   content: Text('Please pick your image'),
                                   backgroundColor: Colors.blue,
                                 ),
