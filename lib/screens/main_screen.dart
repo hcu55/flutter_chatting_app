@@ -490,7 +490,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   .createUserWithEmailAndPassword(
                                 email: userEmail,
                                 password: userPassword,
-
                               );
 
                               final refImage = FirebaseStorage.instance.ref()
